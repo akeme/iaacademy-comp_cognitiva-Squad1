@@ -1,4 +1,4 @@
-from src.gen_function import mostrar_duplicados
+from src.gen_function import remover_duplicados
 import argparse
 
 def main():
@@ -9,7 +9,7 @@ def main():
 
     elementos = args['lista']
 
-    result = mostrar_duplicados(elementos)
+    result = remover_duplicados(elementos)
 
     print('Lista de elementos duplicados: ', result)
 

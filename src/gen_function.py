@@ -198,13 +198,13 @@ def distEucl(p1, p2):
 
 
 
-def mostrar_duplicados(lista) :
+def remover_duplicados(lista) :
     '''
     Função responsável por indentificar elementos duplicados em uma lista
     :param lista: Lista de elementos
     :return: Lista de elementos duplicados
     '''
-    return [item for item, count in collections.Counter(lista).items() if count > 1]
+    return list(dict.fromkeys(lista))
 
 def limiar_array(matriz, limiar):
     '''
