@@ -31,7 +31,7 @@ def gerar_csv(document_list: list):
     # csv header
     fieldnames = ['Token', 'TF', 'DF', 'IDF', 'TF-IDF']
 
-    with open('countries.csv', 'w', encoding='UTF8', newline='') as f:
+    with open('documents.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(document_list)
