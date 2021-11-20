@@ -1,14 +1,13 @@
-from src.gen_function import distEucl
 import argparse
 
 def main():
     '''
-    questao 01
+    teste das funções de NLP
     '''
     ap = argparse.ArgumentParser()
     ap.add_argument('-p1', '--pt1',
                     default=[0, 3],
-                    help='primeiro ponto')
+                    help='arquivos de PDF')
 
     ap.add_argument('-p2', '--pt2',
                     default=[4, 0],
