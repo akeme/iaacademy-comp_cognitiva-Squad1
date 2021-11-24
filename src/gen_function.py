@@ -1,4 +1,4 @@
-# exercicio 01 da aula 02
+﻿# exercicio 01 da aula 02
 import math
 import numpy as np
 import collections
