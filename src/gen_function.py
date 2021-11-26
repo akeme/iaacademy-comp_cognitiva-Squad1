@@ -2,6 +2,11 @@
 import math
 import numpy as np
 import collections
+
+import stanza
+import pandas as pd
+
+
 #funcao para calcular distancia
 def calcularDistancia(p1,p2):
     """
@@ -268,3 +273,24 @@ def multiRoi(mat, pts, tams):
         rois.append(roi(mat, pts[i], tams[i]))
 
     return rois
+
+
+
+
+def word_info_df(doc):
+    """
+    - Parameters: doc (a Stanza Document object)
+    - Returns: A Pandas DataFrame object with one row for each token in
+      doc, and columns for text, lemma, upos, and xpos.
+    """
+    rows = []
+    for sentence in doc.sentences:
+        for word in sentence.words:
+            row = {
+                "text": word.text,
+                "lemma": word.lemma,
+                "upos": word.upos,
+                "xpos": word.xpos,
+            }
+            rows.append(row)
+    return pd.DataFrame(rows)
