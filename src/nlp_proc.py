@@ -2,6 +2,9 @@ from PyPDF2 import PdfFileReader
 import csv
 import stanza
 import pandas as pd
+import collections
+import os
+import numpy as np
 
 def pdf_to_list(caminho_pdf):
     """
@@ -15,13 +18,16 @@ def pdf_to_list(caminho_pdf):
     # inicializa lista com as paginas
     lista_paginas = []
 
+    textointeiro = ""
+
     for page in range(0, pdf.getNumPages()):
         pagina_atual = pdf.getPage(page)
         texto = pagina_atual.extractText()
+        textointeiro += texto
         palavras_pagina = texto.split()
         lista_paginas.append(palavras_pagina)
 
-    return lista_paginas
+    return lista_paginas,textointeiro
 
 def pre_processamento(paginas, idioma, quebrar_linha, lista_stop_words, pontuacao):
     '''
@@ -89,11 +95,70 @@ def lematizar():
     result = ''
     return result
 
+def gerar_TF(s_Texto):
+    '''
+    Term Frequency (TF):
+    𝑇𝐹 = quantidade de ocorrência de um termo em um texto / quantidade total de palavras do texto
+    '''
+
+    TF = []
+
+    dicOcorrenciapalavra = collections.Counter(s_Texto.split())
+    lenght = len(s_Texto.split())
+
+    for palavra in dicOcorrenciapalavra:
+        dicOcorrenciapalavra[palavra] /= lenght
+    
+    TF.append(dicOcorrenciapalavra)
+    
+    return TF
+
+
+def gerar_DF(documentos_dir = "src\\NLPData"):
+    '''
+    Document Frequency (DF)
+    𝐷𝐹 = quantidade de ocorrência de um termo em um conjunto de documentos 
+    '''
+    dir_list = os.listdir(documentos_dir)
+    DF = []
+    for filename in os.listdir(dir_list):
+        f = os.path.join(documentos_dir, filename)
+        if os.path.isfile(f):
+            pdflist,textointeiro = pdf_to_list(f)
+            dicOcorrenciapalavra = collections.Counter(textointeiro.split())
+            DF.append(dicOcorrenciapalavra)
+    
+    return DF,len(dir_list)
+
+
+def gerar_IDF():
+    '''
+    Inverse Document Frequency (IDF)
+    𝐼𝐷𝐹 = log(quantidade de documentos / (𝐷𝐹+1))
+    '''
+    DF,numerodearquivos = gerar_DF("src\\NLPData")
+    
+    for index in range(len(DF)):
+        for palavra in DF[index]:
+            DF[index][palavra] = np.log(numerodearquivos /(DF[index][palavra] + 1))
+    
+    return DF # DF modificado
+
+
+
+def gerar_TFIDF():
+    '''
+    TF-IDF
+    𝑇𝐹−𝐼𝐷𝐹 = 𝐼𝐷𝐹 * 𝑇𝐹
+    '''
+    IDF = gerar_IDF()
+    TF = gerar_TF("s_Texto")
+
+
 
 def gerar_resultados():
     result = ''
     return result
-
 
 def gerar_csv(document_list: list):
     # csv header
