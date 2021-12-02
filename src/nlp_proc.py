@@ -5,6 +5,13 @@ import pandas as pd
 import collections
 import os
 import numpy as np
+import string
+import nltk
+
+# Download Port language model and initialize the NLP
+stanza.download('pt')
+nlp = stanza.Pipeline('pt')
+nltk.download('stopwords')
 
 def pdf_to_list(caminho_pdf):
     """
@@ -18,40 +25,39 @@ def pdf_to_list(caminho_pdf):
     # inicializa lista com as paginas
     lista_paginas = []
 
+    palavras_pagina = []
+
     textointeiro = ""
 
     for page in range(0, pdf.getNumPages()):
         pagina_atual = pdf.getPage(page)
         texto = pagina_atual.extractText()
         textointeiro += texto
-        palavras_pagina = texto.split()
-        lista_paginas.append(palavras_pagina)
+        palavras_pagina += texto.split()
+        #lista_paginas.append(palavras_pagina)
+    
+    return textointeiro,palavras_pagina
 
-    return lista_paginas,textointeiro
+def word_info_df(doc):
+    """
+    - Parameters: doc (a Stanza Document object)
+    - Returns: A Pandas DataFrame object with one row for each token in
+      doc, and columns for text, lemma, upos, and xpos.
+    """
+    rows = []
+    for sentence in doc.sentences:
+        for word in sentence.words:
+            row = {
+                    "text": word.text,
+                    "lemma": word.lemma,
+                    "upos": word.upos,
+                    "xpos": word.xpos,
+                }
+            rows.append(row)
+    
+    return rows
 
-def pre_processamento(paginas, idioma, quebrar_linha, lista_stop_words, pontuacao):
-    '''
-    Realiza o pré-processamento do documento (tokenização e remoção de stop words, deixar todos os caracteres minúsculos
-    :param paginas: Lista com as páginas do documento, onde cada posição da lista é o texto de uma página
-    :param idioma: String informando o idioma do texto
-    :param quebrar_linha: Boleano informando se deve utilizar \n\n como quebra de linha. True = Sim, False = Não
-    :return: Lista de dataframe com o resultado do processamento das páginas. Cada elemento da lista contém 1 dataframe correspondente ao resultado do processamento de 1 página
-    '''
-    result = []
 
-    for pagina in paginas:
-        df = tokenizar(pagina, idioma, quebrar_linha)
-
-        df['sem_stop_words'] = None
-
-        for i, r in df.iterrows():
-            df.iloc[i, 2] = stop_words(r['tokens'],
-                                       lista_stop_words,
-                                       pontuacao)
-
-        result.append(df)
-
-    return result
 
 def stop_words(tokens, lista_stop_words, pontuacao):
     '''
@@ -70,7 +76,8 @@ def stop_words(tokens, lista_stop_words, pontuacao):
 
     return result
 
-def tokenizar(texto, idioma, quebrar_linha):
+
+def tokenizar(texto,nlp):
     '''
     Realiza a tokenização de um texto
     :param texto: String no qual será realizado a tokenização
@@ -79,7 +86,6 @@ def tokenizar(texto, idioma, quebrar_linha):
     :return: Dataframe com as sentenças e seus respectivos tokens
     '''
 
-    nlp = stanza.Pipeline(lang=idioma, processors='tokenize', tokenize_no_ssplit=quebrar_linha)
 
     doc = nlp(texto)
 
@@ -91,69 +97,111 @@ def tokenizar(texto, idioma, quebrar_linha):
 
     return pd.DataFrame(tokens, columns=['sentenca','tokens'])
 
-def lematizar():
-    result = ''
-    return result
 
-def gerar_TF(s_Texto):
+def lematizar(df):
+    """
+    Função para fazer o processo de lematização dos textos
+    => lematizar: agrupar diferentes formas da mesma palavra
+        exemplo: 'correr', 'corre', 'correu' mesmo lema => 'correr'
+    entrada: texto
+    saída: Objeto de document
+    importante: precisa da biblioteca stanza
+    """
+    df_lema = []
+    
+    for i, r in df.iterrows():
+        texto_lem =  nlp(df.iloc[i, 3])
+        df_lema +=  word_info_df(texto_lem)
+
+
+    return pd.DataFrame(df_lema) #se for dataframe
+
+def pre_processamento(texto, idioma, quebrar_linha, lista_stop_words, pontuacao):
+    '''
+    Realiza o pré-processamento do documento (tokenização e remoção de stop words, deixar todos os caracteres minúsculos
+    :param paginas: Lista com as páginas do documento, onde cada posição da lista é o texto de uma página
+    :param idioma: String informando o idioma do texto
+    :param quebrar_linha: Boleano informando se deve utilizar \n\n como quebra de linha. True = Sim, False = Não
+    :return: Lista de dataframe com o resultado do processamento das páginas. Cada elemento da lista contém 1 dataframe correspondente ao resultado do processamento de 1 página
+    '''
+    #result = []
+    nlp = stanza.Pipeline(lang=idioma, processors='tokenize', tokenize_no_ssplit=quebrar_linha)
+    #for pagina in paginas:
+    df = tokenizar(texto,nlp)
+    df['sem_stop_words'] = None
+    df['texto_sem_stop_words'] = None
+        
+    for i, r in df.iterrows():
+        df.iloc[i, 2] = stop_words(r['tokens'],
+                                    lista_stop_words,
+                                    pontuacao)
+        df.iloc[i, 3] = ' '.join(df.iloc[i, 2])
+        
+
+    return df
+
+
+def gerar_TF(listLematizacao):
     '''
     Term Frequency (TF):
     𝑇𝐹 = quantidade de ocorrência de um termo em um texto / quantidade total de palavras do texto
     '''
 
     TF = []
-
-    dicOcorrenciapalavra = collections.Counter(s_Texto.split())
-    lenght = len(s_Texto.split())
-
-    for palavra in dicOcorrenciapalavra:
-        dicOcorrenciapalavra[palavra] /= lenght
+    for _listLematizacao in listLematizacao:
+        pdftexto = _listLematizacao['text'].tolist()
+        dicOcorrenciapalavra = collections.Counter(pdftexto)
+        lenght = len(pdftexto)
+        
+        for palavra in dicOcorrenciapalavra:
+            dicOcorrenciapalavra[palavra] /= lenght
+        TF.append(dicOcorrenciapalavra)
     
-    TF.append(dicOcorrenciapalavra)
     
     return TF
 
 
-def gerar_DF(documentos_dir = "src\\NLPData"):
+def gerar_DF(listLematizacao):
     '''
     Document Frequency (DF)
     𝐷𝐹 = quantidade de ocorrência de um termo em um conjunto de documentos 
     '''
-    dir_list = os.listdir(documentos_dir)
-    DF = []
-    for filename in os.listdir(dir_list):
-        f = os.path.join(documentos_dir, filename)
-        if os.path.isfile(f):
-            pdflist,textointeiro = pdf_to_list(f)
-            dicOcorrenciapalavra = collections.Counter(textointeiro.split())
-            DF.append(dicOcorrenciapalavra)
+
+    TF = gerar_TF(listLematizacao)
+    palavrastodospdfs = []
     
-    return DF,len(dir_list)
+    for _listLematizacao in listLematizacao:
+        palavrastodospdfs += _listLematizacao['text'].tolist()
+
+    DF = collections.Counter(palavrastodospdfs)
+
+    return DF,TF
 
 
-def gerar_IDF():
+def gerar_IDF(listLematizacao,numero_documentos):
     '''
     Inverse Document Frequency (IDF)
     𝐼𝐷𝐹 = log(quantidade de documentos / (𝐷𝐹+1))
     '''
-    DF,numerodearquivos = gerar_DF("src\\NLPData")
+    DF,TF = gerar_DF(listLematizacao)
+
+    for _listLematizacao in listLematizacao:
+        for palavra in _listLematizacao['text'].tolist():
+            DF[palavra] += np.log(numero_documentos /(DF[palavra] + 1))    
     
-    for index in range(len(DF)):
-        for palavra in DF[index]:
-            DF[index][palavra] = np.log(numerodearquivos /(DF[index][palavra] + 1))
     
-    return DF # DF modificado
+    return TF,DF #TF,IDF
 
+def gerar_TFIDF(listLematizacao,numero_documentos):
+    TF,IDF = gerar_IDF(listLematizacao,numero_documentos)
+    
+    TFIDF = IDF # iniciando variavel como cópia
 
+    for _tf in TF:
+        for palavra in _tf:
+            TFIDF[palavra] += _tf[palavra] * IDF[palavra]
 
-def gerar_TFIDF():
-    '''
-    TF-IDF
-    𝑇𝐹−𝐼𝐷𝐹 = 𝐼𝐷𝐹 * 𝑇𝐹
-    '''
-    IDF = gerar_IDF()
-    TF = gerar_TF("s_Texto")
-
+    return TFIDF
 
 
 def gerar_resultados():
@@ -176,3 +224,28 @@ def gerar_csv(document_list: list):
 def gerar_mapa_palavras():
     result = ''
     return result
+
+
+TF_list = []
+documentos_dir = "src\\NLPData"
+
+
+
+listLematizacao = []
+lista_stop_words = nltk.corpus.stopwords.words('portuguese')
+dir_list = os.listdir(documentos_dir)
+numero_documentos = len(dir_list)
+for filename in dir_list:
+    f = os.path.join(documentos_dir, filename)
+    if os.path.isfile(f):
+        resulttextcompleto,pdfpalavraslist = pdf_to_list(f)
+        result = pre_processamento(resulttextcompleto,"pt" , False, lista_stop_words , string.punctuation)       
+        res = lematizar(result)
+        listLematizacao.append(res)
+        
+        
+
+TFIDF_text = gerar_TFIDF(listLematizacao,numero_documentos)
+
+df = pd.DataFrame.from_records(list(dict(TFIDF_text).items()), columns=['token','TFIDF'])
+df.to_csv("arquivo_.csv", sep=';')
