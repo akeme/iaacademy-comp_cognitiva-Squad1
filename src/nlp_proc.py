@@ -17,9 +17,10 @@ def pdf_to_list(caminho_pdf):
 
     for page in range(0, pdf.getNumPages()):
         pagina_atual = pdf.getPage(page)
-        texto = pagina_atual.extractText()
-        palavras_pagina = texto.split()
-        lista_paginas.append(palavras_pagina)
+        #texto = pagina_atual.extractText()
+        #palavras_pagina = texto.split()
+        #lista_paginas.append(palavras_pagina)
+        lista_paginas.append(pagina_atual)
 
     return lista_paginas
 
@@ -34,14 +35,14 @@ def pre_processamento(paginas, idioma, quebrar_linha, lista_stop_words, pontuaca
     result = []
 
     for pagina in paginas:
-        df = tokenizar(pagina, idioma, quebrar_linha)
+        df = tokenizar_lemmatizar(pagina, idioma, quebrar_linha)
 
         df['sem_stop_words'] = None
 
         for i, r in df.iterrows():
-            df.iloc[i, 2] = stop_words(r['tokens'],
-                                       lista_stop_words,
-                                       pontuacao)
+            df.loc[i, 'sem_stop_words'] = stop_words(r['tokens'],
+                                                     lista_stop_words,
+                                                     pontuacao)
 
         result.append(df)
 
@@ -64,7 +65,7 @@ def stop_words(tokens, lista_stop_words, pontuacao):
 
     return result
 
-def tokenizar(texto, idioma, quebrar_linha):
+def tokenizar_lemmatizar(texto, idioma, quebrar_linha):
     '''
     Realiza a tokenização de um texto
     :param texto: String no qual será realizado a tokenização
@@ -73,7 +74,7 @@ def tokenizar(texto, idioma, quebrar_linha):
     :return: Dataframe com as sentenças e seus respectivos tokens
     '''
 
-    nlp = stanza.Pipeline(lang=idioma, processors='tokenize', tokenize_no_ssplit=quebrar_linha)
+    nlp = stanza.Pipeline(lang=idioma, processors='tokenize,lemma', tokenize_no_ssplit=quebrar_linha)
 
     doc = nlp(texto)
 
@@ -81,9 +82,10 @@ def tokenizar(texto, idioma, quebrar_linha):
 
     for i, sentence in enumerate(doc.sentences):
         tokens.append([sentence.text.lower(),
-                      [token.text.lower() for token in sentence.tokens]])
+                       [token.text.lower() for token in sentence.tokens],
+                       [token.lemma for token in sentence.words]])
 
-    return pd.DataFrame(tokens, columns=['sentenca','tokens'])
+    return pd.DataFrame(tokens, columns=['sentenca', 'tokens', 'lemma'])
 
 def lematizar():
     result = ''
