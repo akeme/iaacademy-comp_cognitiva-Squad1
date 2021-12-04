@@ -201,7 +201,7 @@ def gerar_IDF(listLematizacao,numero_documentos):
 
     for _listLematizacao in listLematizacao:
         for palavra in _listLematizacao['text'].tolist():
-            DF[palavra] += 1 + np.log(numero_documentos /DF[palavra])  
+            DF[palavra] +=  np.log(numero_documentos /(DF[palavra] + 1))  
     
     
     return TF,DF #  TF,IDF
@@ -242,7 +242,6 @@ def gerar_mapa_palavras():
 
 TF_list = []
 documentos_dir = "src\\NLPData"
-
 
 
 listLematizacao = []
