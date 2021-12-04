@@ -7,6 +7,8 @@ import os
 import numpy as np
 import string
 import nltk
+import re
+import fitz
 
 # Download Port language model and initialize the NLP
 stanza.download('pt')
@@ -29,13 +31,19 @@ def pdf_to_list(caminho_pdf):
 
     textointeiro = ""
 
-    for page in range(0, pdf.getNumPages()):
-        pagina_atual = pdf.getPage(page)
-        texto = pagina_atual.extractText()
-        textointeiro += texto
-        palavras_pagina += texto.split()
-        #lista_paginas.append(palavras_pagina)
-    
+  
+    with fitz.open(caminho_pdf) as pdf:
+        for pagina in pdf:
+            textointeiro += pagina.getText()
+
+    textointeiro = textointeiro.strip()
+    textointeiro = textointeiro.replace("\n"," ")
+    textointeiro = textointeiro.replace("\t"," ")
+    textointeiro = re.sub(' +',' ', textointeiro)
+    textointeiro = re.sub(r'[0-9]+','', textointeiro)
+    textointeiro = re.sub(r'[.()/%]+','', textointeiro)
+    palavras_pagina = textointeiro.split()
+
     return textointeiro,palavras_pagina
 
 def word_info_df(doc):
@@ -47,6 +55,7 @@ def word_info_df(doc):
     rows = []
     for sentence in doc.sentences:
         for word in sentence.words:
+            #if word not in lista_stop_words
             row = {
                     "text": word.text,
                     "lemma": word.lemma,
@@ -94,6 +103,7 @@ def tokenizar(texto,nlp):
     for i, sentence in enumerate(doc.sentences):
         tokens.append([sentence.text.lower(),
                       [token.text.lower() for token in sentence.tokens]])
+        
 
     return pd.DataFrame(tokens, columns=['sentenca','tokens'])
 
@@ -107,13 +117,16 @@ def lematizar(df):
     saída: Objeto de document
     importante: precisa da biblioteca stanza
     """
-    df_lema = []
     
+    df_lema = []
     for i, r in df.iterrows():
+        
         texto_lem =  nlp(df.iloc[i, 3])
+        
         df_lema +=  word_info_df(texto_lem)
-
-
+        #if i == 0: break
+    
+     
     return pd.DataFrame(df_lema) #se for dataframe
 
 def pre_processamento(texto, idioma, quebrar_linha, lista_stop_words, pontuacao):
@@ -130,7 +143,7 @@ def pre_processamento(texto, idioma, quebrar_linha, lista_stop_words, pontuacao)
     df = tokenizar(texto,nlp)
     df['sem_stop_words'] = None
     df['texto_sem_stop_words'] = None
-        
+   
     for i, r in df.iterrows():
         df.iloc[i, 2] = stop_words(r['tokens'],
                                     lista_stop_words,
@@ -156,7 +169,8 @@ def gerar_TF(listLematizacao):
         for palavra in dicOcorrenciapalavra:
             dicOcorrenciapalavra[palavra] /= lenght
         TF.append(dicOcorrenciapalavra)
-    
+
+
     
     return TF
 
@@ -187,10 +201,10 @@ def gerar_IDF(listLematizacao,numero_documentos):
 
     for _listLematizacao in listLematizacao:
         for palavra in _listLematizacao['text'].tolist():
-            DF[palavra] += np.log(numero_documentos /(DF[palavra] + 1))    
+            DF[palavra] += 1 + np.log(numero_documentos /DF[palavra])  
     
     
-    return TF,DF #TF,IDF
+    return TF,DF #  TF,IDF
 
 def gerar_TFIDF(listLematizacao,numero_documentos):
     TF,IDF = gerar_IDF(listLematizacao,numero_documentos)
@@ -233,6 +247,8 @@ documentos_dir = "src\\NLPData"
 
 listLematizacao = []
 lista_stop_words = nltk.corpus.stopwords.words('portuguese')
+
+
 dir_list = os.listdir(documentos_dir)
 numero_documentos = len(dir_list)
 for filename in dir_list:
@@ -242,8 +258,8 @@ for filename in dir_list:
         result = pre_processamento(resulttextcompleto,"pt" , False, lista_stop_words , string.punctuation)       
         res = lematizar(result)
         listLematizacao.append(res)
-        
-        
+
+      
 
 TFIDF_text = gerar_TFIDF(listLematizacao,numero_documentos)
 
