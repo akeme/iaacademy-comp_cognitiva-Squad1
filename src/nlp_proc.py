@@ -186,9 +186,10 @@ def gerar_DF(listLematizacao):
     
     for _listLematizacao in listLematizacao:
         palavrastodospdfs += _listLematizacao['text'].tolist()
+        
+
 
     DF = collections.Counter(palavrastodospdfs)
-
     return DF,TF
 
 
@@ -198,29 +199,65 @@ def gerar_IDF(listLematizacao,numero_documentos):
     𝐼𝐷𝐹 = log(quantidade de documentos / (𝐷𝐹+1))
     '''
     DF,TF = gerar_DF(listLematizacao)
-
+    IDF = DF
     for _listLematizacao in listLematizacao:
         for palavra in _listLematizacao['text'].tolist():
-            DF[palavra] +=  np.log(numero_documentos /(DF[palavra] + 1))  
+            IDF[palavra] +=  np.log(numero_documentos /(IDF[palavra] + 1))  
     
     
-    return TF,DF #  TF,IDF
+    return TF,IDF,DF #  TF,IDF
 
 def gerar_TFIDF(listLematizacao,numero_documentos):
-    TF,IDF = gerar_IDF(listLematizacao,numero_documentos)
+    TF,IDF,DF = gerar_IDF(listLematizacao,numero_documentos)
     
-    TFIDF = IDF # iniciando variavel como cópia
+    TFIDF = []
 
     for _tf in TF:
-        for palavra in _tf:
-            TFIDF[palavra] += _tf[palavra] * IDF[palavra]
+        _TFIDF = _tf # iniciando variavel como cópia
+        for palavra in _tf: 
+            _TFIDF[palavra] = _tf[palavra] * IDF[palavra]
+        TFIDF.append(_TFIDF)
 
-    return TFIDF
+    return TFIDF,TF,IDF,DF
 
 
 def gerar_resultados():
-    result = ''
-    return result
+
+    TF_list = []
+    documentos_dir = "src\\NLPData"
+
+
+    listLematizacao = []
+    lista_stop_words = nltk.corpus.stopwords.words('portuguese')
+
+
+    dir_list = os.listdir(documentos_dir)
+    numero_documentos = len(dir_list)
+    for filename in dir_list:
+        f = os.path.join(documentos_dir, filename)
+        if os.path.isfile(f):
+            resulttextcompleto,pdfpalavraslist = pdf_to_list(f)
+            result = pre_processamento(resulttextcompleto,"pt" , False, lista_stop_words , string.punctuation)       
+            res = lematizar(result)
+            listLematizacao.append(res)
+
+        
+
+    TFIDF,TF,IDF,DF = gerar_TFIDF(listLematizacao,numero_documentos)
+
+    rows = []
+    for index in range(len(TFIDF)):
+        for palavra in TFIDF[index]:
+            row = {
+                    'token': palavra,
+                    'tf': TF[index][palavra],
+                    'df': DF[palavra],
+                    'idf': IDF[palavra],
+                    'tf-idf': TFIDF[index][palavra],
+                    'arquivo': index
+                    }
+            rows.append(row)
+    return rows
 
 def gerar_csv(document_list: list):
     # csv header
@@ -240,27 +277,8 @@ def gerar_mapa_palavras():
     return result
 
 
-TF_list = []
-documentos_dir = "src\\NLPData"
 
 
-listLematizacao = []
-lista_stop_words = nltk.corpus.stopwords.words('portuguese')
-
-
-dir_list = os.listdir(documentos_dir)
-numero_documentos = len(dir_list)
-for filename in dir_list:
-    f = os.path.join(documentos_dir, filename)
-    if os.path.isfile(f):
-        resulttextcompleto,pdfpalavraslist = pdf_to_list(f)
-        result = pre_processamento(resulttextcompleto,"pt" , False, lista_stop_words , string.punctuation)       
-        res = lematizar(result)
-        listLematizacao.append(res)
-
-      
-
-TFIDF_text = gerar_TFIDF(listLematizacao,numero_documentos)
-
-df = pd.DataFrame.from_records(list(dict(TFIDF_text).items()), columns=['token','TFIDF'])
-df.to_csv("arquivo_.csv", sep=';')
+gerar_resultados()
+#df = pd.DataFrame.from_records(list(dict(TFIDF_text[2]).items()), columns=['token','TFIDF'])
+#df.to_csv("arquivo_3.csv", sep=';')
