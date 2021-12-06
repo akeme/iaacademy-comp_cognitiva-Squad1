@@ -1,4 +1,4 @@
-from PyPDF2 import PdfFileReader
+
 import csv
 import stanza
 import pandas as pd
@@ -8,7 +8,7 @@ import numpy as np
 import string
 import nltk
 import re
-import fitz
+import fitz # pip install -U PyMuPDF (Dependencia extra)
 
 # Download Port language model and initialize the NLP
 stanza.download('pt')
@@ -22,7 +22,6 @@ def pdf_to_list(caminho_pdf):
         :return: retorna uma lista com as palavras extraidas do pdf
         """
     # abre o pdf
-    pdf = PdfFileReader(open(caminho_pdf, "rb"))
 
     # inicializa lista com as paginas
     lista_paginas = []
@@ -279,6 +278,7 @@ def gerar_mapa_palavras():
 
 
 
-gerar_resultados()
+result = gerar_resultados()
 #df = pd.DataFrame.from_records(list(dict(TFIDF_text[2]).items()), columns=['token','TFIDF'])
-#df.to_csv("arquivo_3.csv", sep=';')
+df =  pd.DataFrame(result)
+df.to_csv("arquivo_.csv", sep=';')
